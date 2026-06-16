@@ -1,0 +1,268 @@
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║  YACR – Your All Call Recorder  |  .github/workflows/release.yml            ║
+# ║  Developer : MNM YOUNUS                                                      ║
+# ║                                                                              ║
+# ║  CI/CD Pipeline:                                                             ║
+# ║   • Triggers on: push to main, version tags (v*.*.*), pull requests         ║
+# ║   • Steps: checkout → Java setup → Gradle cache → lint → unit tests →       ║
+# ║             assemble release APK → sign APK → upload to GitHub Releases      ║
+# ║                                                                              ║
+# ║  Required GitHub Secrets:                                                    ║
+# ║   SIGNING_KEYSTORE_BASE64   — Base64-encoded .jks keystore file             ║
+# ║   SIGNING_STORE_PASSWORD    — Keystore password                             ║
+# ║   SIGNING_KEY_ALIAS         — Key alias within the keystore                 ║
+# ║   SIGNING_KEY_PASSWORD      — Key password                                  ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+
+name: YACR Release Build
+
+on:
+  push:
+    branches: [ "main" ]
+    tags:
+      - "v*.*.*"          # Semantic version tags trigger a GitHub Release
+  pull_request:
+    branches: [ "main" ]
+
+# Cancel in-progress runs for the same ref to save CI minutes
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: "17"
+  JAVA_DISTRIBUTION: "temurin"
+
+jobs:
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # JOB 1: Lint & Unit Tests
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  lint_and_test:
+    name: "Lint + Unit Tests"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: "☁ Checkout repository"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Full history for version tag resolution
+
+      - name: "☕ Set up JDK ${{ env.JAVA_VERSION }}"
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+      - name: "📦 Cache Gradle & Android SDK"
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle.kts', '**/libs.versions.toml') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      - name: "🔧 Make gradlew executable"
+        run: chmod +x gradlew
+
+      - name: "🔍 Run Android Lint"
+        run: ./gradlew lintDebug --stacktrace
+
+      - name: "🧪 Run Unit Tests"
+        run: ./gradlew testDebugUnitTest --stacktrace
+
+      - name: "📊 Upload Lint Report"
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lint-report
+          path: app/build/reports/lint-results-debug.html
+          retention-days: 14
+
+      - name: "📊 Upload Test Report"
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-test-report
+          path: app/build/reports/tests/testDebugUnitTest/
+          retention-days: 14
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # JOB 2: Build & Sign Release APK
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  build_release:
+    name: "Build & Sign Release APK"
+    runs-on: ubuntu-latest
+    needs: lint_and_test
+    timeout-minutes: 30
+
+    steps:
+      - name: "☁ Checkout repository"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "☕ Set up JDK ${{ env.JAVA_VERSION }}"
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+      - name: "📦 Cache Gradle"
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle.kts', '**/libs.versions.toml') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      - name: "🔧 Make gradlew executable"
+        run: chmod +x gradlew
+
+      # ── Decode keystore from Base64 secret ──────────────────────────────
+      - name: "🔑 Decode signing keystore"
+        if: ${{ secrets.SIGNING_KEYSTORE_BASE64 != '' }}
+        run: |
+          echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 --decode > yacr-release.keystore
+          echo "SIGNING_KEYSTORE_PATH=$(pwd)/yacr-release.keystore" >> $GITHUB_ENV
+
+      # ── Build Release APK ──────────────────────────────────────────────
+      - name: "🔨 Assemble Release APK"
+        env:
+          SIGNING_KEYSTORE_PATH:   ${{ env.SIGNING_KEYSTORE_PATH }}
+          SIGNING_STORE_PASSWORD:  ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS:       ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD:    ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          ./gradlew assembleRelease \
+            --stacktrace \
+            --no-daemon \
+            -Porg.gradle.jvmargs="-Xmx3g"
+
+      # ── Verify APK is signed ───────────────────────────────────────────
+      - name: "✅ Verify APK signature"
+        run: |
+          APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+          echo "APK: $APK_PATH"
+          if [ -f "$APK_PATH" ]; then
+            $ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | tail -1)/apksigner verify \
+              --verbose "$APK_PATH" 2>&1 | tee apk_verify.log
+          fi
+
+      # ── Extract version name for artifact naming ───────────────────────
+      - name: "📝 Extract version info"
+        id: version
+        run: |
+          VERSION=$(./gradlew -q printVersionName 2>/dev/null || echo "1.0.0")
+          COMMIT_SHORT=$(git rev-parse --short HEAD)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "commit=$COMMIT_SHORT" >> $GITHUB_OUTPUT
+          echo "date=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+          echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+
+      # ── Rename APKs for clarity ────────────────────────────────────────
+      - name: "📦 Rename APK artifacts"
+        run: |
+          mkdir -p release_artifacts
+          for apk in $(find app/build/outputs/apk/release -name "*.apk"); do
+            BASENAME=$(basename "$apk" .apk)
+            cp "$apk" "release_artifacts/YACR-v${{ steps.version.outputs.version }}-${{ steps.version.outputs.date }}-${BASENAME}.apk"
+          done
+          ls -la release_artifacts/
+
+      # ── Upload as workflow artifact (always, for PR verification) ──────
+      - name: "⬆ Upload APK artifacts"
+        uses: actions/upload-artifact@v4
+        with:
+          name: YACR-release-apks-${{ steps.version.outputs.date }}-${{ steps.version.outputs.commit }}
+          path: release_artifacts/*.apk
+          retention-days: 30
+          if-no-files-found: error
+
+      # ── Upload mapping file for crash symbolication ────────────────────
+      - name: "⬆ Upload R8 Mapping File"
+        uses: actions/upload-artifact@v4
+        with:
+          name: r8-mapping-${{ steps.version.outputs.version }}
+          path: app/build/outputs/mapping/release/mapping.txt
+          retention-days: 90
+          if-no-files-found: warn
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # JOB 3: Publish GitHub Release (only on version tags)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  github_release:
+    name: "Publish GitHub Release"
+    runs-on: ubuntu-latest
+    needs: build_release
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write    # Required for creating releases
+
+    steps:
+      - name: "☁ Checkout repository"
+        uses: actions/checkout@v4
+
+      - name: "⬇ Download APK artifacts"
+        uses: actions/download-artifact@v4
+        with:
+          pattern: YACR-release-apks-*
+          path: ./release_apks
+          merge-multiple: true
+
+      - name: "📋 Generate Release Notes"
+        id: release_notes
+        run: |
+          TAG="${{ github.ref_name }}"
+          cat > release_notes.md << NOTES
+          ## YACR ${TAG} — Your All Call Recorder
+
+          **Developer:** MNM YOUNUS
+
+          ### What's included
+          - Automatic recording of cellular and VoIP calls (WhatsApp, Signal, Telegram, Viber, and more)
+          - AES-GCM-256 encryption via Android Keystore — recordings are encrypted before reaching disk
+          - Zero Internet permission — the app is physically incapable of network data transmission
+          - Clean Architecture (Data / Domain / Presentation) with Hilt DI and Jetpack Compose UI
+          - Supports Android 10 (API 29) through Android 15 (API 35)
+
+          ### APK variants
+          | File | Architecture |
+          |------|-------------|
+          | \`*-arm64-v8a*\` | 64-bit ARM (most modern phones) |
+          | \`*-armeabi-v7a*\` | 32-bit ARM |
+          | \`*-x86_64*\` | 64-bit x86 emulators |
+          | \`*-universal*\` | All architectures |
+
+          ### Installation
+          1. Download the APK matching your device architecture (\`arm64-v8a\` for most phones)
+          2. Enable "Install from unknown sources" in Android Settings
+          3. Install the APK
+          4. Grant required permissions (Phone, Microphone, Notifications)
+          5. Enable the YACR VoIP Monitor in Accessibility Settings for VoIP call detection
+
+          > 🔒 **Security note:** This app stores recordings encrypted with AES-GCM-256 keys
+          > managed by the Android Keystore. The app has no internet permission and cannot
+          > transmit any data externally.
+
+          **Commit:** ${{ github.sha }}
+          NOTES
+          echo "notes_file=release_notes.md" >> $GITHUB_OUTPUT
+
+      - name: "🚀 Create GitHub Release"
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name:   ${{ github.ref_name }}
+          name:       "YACR ${{ github.ref_name }}"
+          body_path:  release_notes.md
+          draft:      false
+          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
+          files: |
+            ./release_apks/*.apk
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
