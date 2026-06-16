@@ -124,12 +124,7 @@ jobs:
         run: chmod +x gradlew
 
       # ── Decode keystore from Base64 secret ──────────────────────────────
-      - name: "🔑 Decode signing keystore"
-        if: ${{ secrets.SIGNING_KEYSTORE_BASE64 != '' }}
-        run: |
-          echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 --decode > yacr-release.keystore
-          echo "SIGNING_KEYSTORE_PATH=$(pwd)/yacr-release.keystore" >> $GITHUB_ENV
-
+      
       # ── Build Release APK ──────────────────────────────────────────────
       - name: "🔨 Assemble Release APK"
         env:
