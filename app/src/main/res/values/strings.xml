@@ -1,0 +1,70 @@
+<resources>
+    <string name="app_name">YACR</string>
+    <string name="app_full_name">Your All Call Recorder</string>
+    <string name="developer">MNM YOUNUS</string>
+
+    <!-- Accessibility Service -->
+    <string name="accessibility_service_label">YACR VoIP Call Monitor</string>
+    <string name="accessibility_service_description">
+        YACR uses Accessibility Services to detect active VoIP and IP calls in
+        supported applications (WhatsApp, Signal, Telegram, etc.) and to extract
+        Caller ID information. No screen content is transmitted externally.
+        All data remains exclusively on this device.
+    </string>
+
+    <!-- Notification Channels -->
+    <string name="notification_channel_recording_id">yacr_recording</string>
+    <string name="notification_channel_recording_name">Active Recording</string>
+    <string name="notification_channel_recording_desc">Shows when YACR is actively recording a call</string>
+    <string name="notification_channel_alerts_id">yacr_alerts</string>
+    <string name="notification_channel_alerts_name">Alerts &amp; Status</string>
+    <string name="notification_channel_alerts_desc">General alerts and status updates from YACR</string>
+
+    <!-- Notifications -->
+    <string name="notification_recording_title">Recording in progress</string>
+    <string name="notification_recording_text">Tap to open YACR</string>
+    <string name="notification_recording_stop">Stop</string>
+
+    <!-- Permissions -->
+    <string name="perm_rationale_phone">YACR needs Phone permission to detect when calls start and end.</string>
+    <string name="perm_rationale_record_audio">YACR needs Microphone permission to capture call audio.</string>
+    <string name="perm_rationale_notifications">YACR needs Notification permission to show the active recording indicator.</string>
+    <string name="perm_rationale_call_log">YACR needs Call Log permission to label recordings with contact names.</string>
+
+    <!-- UI Labels -->
+    <string name="label_recordings">Recordings</string>
+    <string name="label_settings">Settings</string>
+    <string name="label_search">Search recordings</string>
+    <string name="label_delete">Delete</string>
+    <string name="label_export">Export</string>
+    <string name="label_share">Share</string>
+    <string name="label_play">Play</string>
+    <string name="label_pause">Pause</string>
+    <string name="label_no_recordings">No recordings yet</string>
+    <string name="label_unknown_caller">Unknown Caller</string>
+    <string name="label_cellular_call">Cellular Call</string>
+    <string name="label_voip_call">VoIP Call</string>
+    <string name="label_duration">Duration: %1$s</string>
+    <string name="label_file_size">Size: %1$s</string>
+    <string name="label_encrypted">🔒 Encrypted</string>
+
+    <!-- Settings -->
+    <string name="settings_auto_record">Auto-record all calls</string>
+    <string name="settings_auto_record_desc">Automatically start recording when a call is detected</string>
+    <string name="settings_record_cellular">Record cellular calls</string>
+    <string name="settings_record_voip">Record VoIP/IP calls</string>
+    <string name="settings_audio_source">Audio source</string>
+    <string name="settings_audio_quality">Recording quality</string>
+    <string name="settings_biometric_lock">Biometric app lock</string>
+    <string name="settings_storage_path">Storage path</string>
+    <string name="settings_auto_delete">Auto-delete after</string>
+    <string name="settings_export_format">Export format</string>
+
+    <!-- Error Messages -->
+    <string name="error_permission_denied">Permission denied. Cannot record calls.</string>
+    <string name="error_audio_focus">Failed to acquire audio focus.</string>
+    <string name="error_encryption_failed">Encryption subsystem failure. Recording aborted for security.</string>
+    <string name="error_storage_full">Insufficient storage space.</string>
+    <string name="error_keystore">Keystore operation failed. Re-initialization required.</string>
+    <string name="error_playback_decryption">Decryption failed. Recording may be corrupted.</string>
+</resources>

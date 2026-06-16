@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    YACR Network Security Configuration
+    Developer: MNM YOUNUS
+
+    ZERO NETWORK POLICY:
+    This configuration explicitly blocks ALL cleartext traffic AND
+    all encrypted (TLS) traffic. Combined with the absence of
+    android.permission.INTERNET, the application has no network capability.
+
+    This file exists as a defense-in-depth measure to prevent any
+    future accidental dependency from establishing network connections.
+-->
+<network-security-config>
+    <!-- Block all cleartext traffic globally -->
+    <base-config cleartextTrafficPermitted="false">
+        <!-- No trust anchors defined = no HTTPS connections possible -->
+        <trust-anchors>
+            <!-- Intentionally empty: trust no Certificate Authorities -->
+        </trust-anchors>
+    </base-config>
+</network-security-config>

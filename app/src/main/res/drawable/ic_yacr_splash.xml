@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    YACR Splash Screen Icon
+    Developer: MNM YOUNUS
+    A stylized record button with a waveform — represents call recording.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Outer circle background -->
+    <path
+        android:fillColor="#E53935"
+        android:pathData="M54,14C32,14 14,32 14,54s18,40 40,40 40,-18 40,-40S76,14 54,14z"/>
+    <!-- Microphone body -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,30c-4.4,0-8,3.6-8,8v16c0,4.4,3.6,8,8,8s8,-3.6,8,-8V38C62,33.6,58.4,30,54,30z"/>
+    <!-- Microphone stand -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M67,54c0,7.2-5.8,13-13,13S41,61.2,41,54h-4c0,9.1,6.9,16.6,15.8,17.4V78h4.4v-6.6C66.1,70.6,73,63.1,73,54H67z"/>
+</vector>

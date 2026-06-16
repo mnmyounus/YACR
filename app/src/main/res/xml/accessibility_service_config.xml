@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    YACR Accessibility Service Configuration
+    Developer: MNM YOUNUS
+
+    Monitored packages:
+      - com.whatsapp           (WhatsApp calls)
+      - org.thoughtcrime.securesms (Signal calls)
+      - com.viber.voip         (Viber calls)
+      - org.telegram.messenger (Telegram calls)
+      - com.facebook.orca      (Messenger calls)
+      - com.skype.raider       (Skype calls)
+      - com.google.android.apps.meetings (Google Meet)
+      - us.zoom.videomeetings  (Zoom calls)
+      - com.android.phone      (AOSP Dialer)
+      - com.google.android.dialer (Google Dialer)
+      - com.samsung.android.incallui (Samsung InCall UI)
+-->
+<accessibility-service
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="
+        typeWindowStateChanged|
+        typeWindowContentChanged|
+        typeViewTextChanged|
+        typeViewFocused|
+        typeViewScrolled"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="
+        flagReportViewIds|
+        flagRetrieveInteractiveWindows|
+        flagRequestEnhancedWebAccessibility"
+    android:canRetrieveWindowContent="true"
+    android:canPerformGestures="false"
+    android:description="@string/accessibility_service_description"
+    android:notificationTimeout="100"
+    android:packageNames="
+        com.whatsapp,
+        org.thoughtcrime.securesms,
+        com.viber.voip,
+        org.telegram.messenger,
+        com.facebook.orca,
+        com.skype.raider,
+        com.google.android.apps.meetings,
+        us.zoom.videomeetings,
+        com.android.phone,
+        com.google.android.dialer,
+        com.samsung.android.incallui,
+        com.oneplus.dialer,
+        com.miui.incallui" />
