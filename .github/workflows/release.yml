@@ -1,66 +1,102 @@
-name: YACR — Build & Release APK
+name: 🔒 Build & Release APK
 
+# ── Trigger ────────────────────────────────────────────────────────
+# 1) Push any tag that starts with "v"  (e.g. v1.0.0, v1.2.0-beta) → auto release
+# 2) Manual "Run workflow" button in the Actions tab → enter a version
 on:
   push:
     tags:
-      - "v*.*.*"
+      - 'v*'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag to release (e.g. v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+        type: string
 
 jobs:
-  build:
-    name: "Build APK"
+  build-release:
+    name: Build · Release
     runs-on: ubuntu-latest
 
-    steps:
-      - name: "Checkout"
-        uses: actions/checkout@v4
+    # Required to create a GitHub Release and upload the APK asset
+    permissions:
+      contents: write
 
-      - name: "Setup JDK 17"
+    steps:
+
+      # ── 1. Source ────────────────────────────────────────────
+      - name: ⬇ Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ── 2. Java ──────────────────────────────────────────────
+      - name: ☕ Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: "17"
-          distribution: "temurin"
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
 
-      # Safety net: if gradle-wrapper.jar is missing or corrupted, this
-      # regenerates it using the official setup-gradle action's bundled
-      # Gradle binary — so the build never fails on this issue again.
-      - name: "Verify / Repair Gradle Wrapper"
+      # ── 3. Gradle wrapper permission ─────────────────────────
+      - name: 🔧 Make gradlew executable
+        run: chmod +x ./gradlew
+
+      # ── 4. Build ─────────────────────────────────────────────
+      # Uses the debug keystore (auto-generated on every runner).
+      # No KEYSTORE_* secrets are required — the APK is fully
+      # installable via sideload / "Install unknown apps".
+      - name: 🔨 Assemble release APK
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+
+      # ── 5. Rename APK & capture metadata ─────────────────────
+      - name: 📦 Rename APK to version tag
         run: |
-          if [ ! -s gradle/wrapper/gradle-wrapper.jar ]; then
-            echo "gradle-wrapper.jar missing or empty — regenerating..."
-            curl -sL -o gradle/wrapper/gradle-wrapper.jar \
-              "https://raw.githubusercontent.com/gradle/gradle/v8.6.0/gradle/wrapper/gradle-wrapper.jar"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.version }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
           fi
-          unzip -l gradle/wrapper/gradle-wrapper.jar | grep -q GradleWrapperMain \
-            && echo "✅ gradle-wrapper.jar is valid" \
-            || (echo "❌ gradle-wrapper.jar is invalid" && exit 1)
+          SRC="app/build/outputs/apk/release/app-release.apk"
+          DST="app/build/outputs/apk/release/YPI-${TAG}.apk"
+          mv "$SRC" "$DST"
+          echo "APK_PATH=$DST"       >> $GITHUB_ENV
+          echo "APK_NAME=YPI-${TAG}.apk" >> $GITHUB_ENV
+          echo "VERSION=$TAG"        >> $GITHUB_ENV
 
-      - name: "Cache Gradle"
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle.kts','**/libs.versions.toml') }}
-          restore-keys: gradle-${{ runner.os }}-
-
-      - name: "Make gradlew executable"
-        run: chmod +x gradlew
-
-      - name: "Build Release APK"
-        run: ./gradlew assembleRelease --no-daemon
-
-      - name: "Rename APK"
-        run: |
-          mkdir -p output
-          for apk in $(find app/build/outputs/apk/release -name "*.apk"); do
-            cp "$apk" "output/YACR-${{ github.ref_name }}.apk"
-          done
-
-      - name: "Publish GitHub Release"
+      # ── 6. GitHub Release ────────────────────────────────────
+      - name: 🚀 Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: "YACR ${{ github.ref_name }}"
-          files: output/*.apk
+          name: "YPI ${{ env.VERSION }}"
+          tag_name: ${{ env.VERSION }}
+          body: |
+            ## YPI – Your Privacy Indicator ${{ env.VERSION }}
+
+            A lightweight floating dot that shows when your **camera** 🟢, **microphone** 🟠,
+            or **audio** 🔵 are active — across every app on your device.
+
+            ### Installation
+            1. Download **`${{ env.APK_NAME }}`** below.
+            2. On your device: **Settings → Install unknown apps** → allow your file manager.
+            3. Tap the APK and install.
+            4. Open YPI and complete the 2-step setup.
+
+            ### Privacy guarantee
+            - ❌ Zero `INTERNET` permission — confirmed absent in Manifest
+            - 📴 100% offline — no data ever leaves your device
+            - 👁 Sensor detection uses local Android system APIs only
+            - 🔓 Signed with the build runner's debug key (sideload-ready)
+          files: ${{ env.APK_PATH }}
+          draft: false
+          # Automatically mark alpha / beta / rc tags as pre-releases
+          prerelease: >-
+            ${{
+              contains(env.VERSION, 'alpha') ||
+              contains(env.VERSION, 'beta')  ||
+              contains(env.VERSION, 'rc')
+            }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
