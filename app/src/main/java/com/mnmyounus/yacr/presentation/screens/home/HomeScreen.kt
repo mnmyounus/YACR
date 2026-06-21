@@ -247,7 +247,7 @@ private fun RecordingsList(
                 onLongPress  = { onLongPress(recording) },
                 onDelete     = { onDelete(recording) },
                 onToggleFlag = { onToggleFlag(recording) },
-                modifier     = Modifier.animateItem()
+                modifier     = Modifier.animateItemPlacement()
             )
         }
         item { Spacer(Modifier.height(80.dp)) }
