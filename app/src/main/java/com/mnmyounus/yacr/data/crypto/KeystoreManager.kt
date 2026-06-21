@@ -88,7 +88,6 @@ class KeystoreManager @Inject constructor() {
             .setKeySize(KEY_SIZE_BITS)
             .setBlockModes(BLOCK_MODE_GCM)
             .setEncryptionPaddings(ENCRYPTION_PADDING_NONE)
-            .setGcmTagLength(GCM_TAG_LENGTH_BITS)
             // Randomized encryption ensures unique ciphertext for each recording
             .setRandomizedEncryptionRequired(true)
             // Key does NOT require user authentication — needed for background recording
