@@ -4,17 +4,13 @@
  * ║  Developer : MNM YOUNUS                                                  ║
  * ║  File      : app/build.gradle.kts                                        ║
  * ║                                                                          ║
- * ║  FIX APPLIED: compileSdk/targetSdk reverted 35 → 34                      ║
- * ║  Reason: AGP 8.3.2 is only verified up to compileSdk 34. Using 35        ║
- * ║  caused AAPT2 to fail resolving framework resources                      ║
- * ║  (android:style/Theme.Material.NoTitleBar not found) because the        ║
- * ║  API 35 platform jar isn't fully supported by this AGP version.         ║
- * ║  API 34 also matches the originally specified target range              ║
- * ║  (Android 10 / API 29 → Android 14+ / API 34+).                         ║
+ * ║  Build Configuration:                                                    ║
+ * ║   • Kotlin 2.0 + Compose Compiler Plugin                                 ║
+ * ║   • Hilt DI + KSP annotation processing                                  ║
+ * ║   • R8 full-mode ProGuard for release shrinking                          ║
+ * ║   • ABI splits: arm64-v8a, armeabi-v7a, x86_64 (minimal APK sizes)      ║
  * ╚══════════════════════════════════════════════════════════════════════════╝
  */
-import java.util.Properties
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -24,19 +20,14 @@ plugins {
     alias(libs.plugins.kotlin.parcelize)
 }
 
-val keystorePropertiesFile = rootProject.file("keystore.properties")
-val keystoreProperties = Properties().apply {
-    if (keystorePropertiesFile.exists()) load(keystorePropertiesFile.inputStream())
-}
-
 android {
     namespace   = "com.mnmyounus.yacr"
-    compileSdk  = 34          // FIXED — was 35
+    compileSdk  = 34
 
     defaultConfig {
         applicationId        = "com.mnmyounus.yacr"
         minSdk               = 29          // Android 10 (Q)
-        targetSdk             = 34          // FIXED — was 35, Android 14
+        targetSdk            = 34          // Android 14
         versionCode          = 1
         versionName          = "1.0.0"
 
@@ -44,6 +35,7 @@ android {
 
         vectorDrawables { useSupportLibrary = true }
 
+        // Room schema export path
         ksp {
             arg("room.schemaLocation",   "$projectDir/schemas")
             arg("room.incremental",      "true")
@@ -55,19 +47,12 @@ android {
         buildConfigField("String", "KEYSTORE_ALIAS", "\"yacr_master_key\"")
     }
 
-    signingConfigs {
-        create("release") {
-            storeFile = (System.getenv("SIGNING_KEYSTORE_PATH")
-                ?: keystoreProperties["storeFile"] as? String)
-                ?.let { file(it) }
-            storePassword = System.getenv("SIGNING_STORE_PASSWORD")
-                ?: keystoreProperties["storePassword"] as? String
-            keyAlias = System.getenv("SIGNING_KEY_ALIAS")
-                ?: keystoreProperties["keyAlias"] as? String
-            keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
-                ?: keystoreProperties["keyPassword"] as? String
-        }
-    }
+    // NOTE: No signingConfigs block — release APKs are built UNSIGNED on
+    // purpose (per project requirement: no signing, APK only). AGP will
+    // output app-release-unsigned.apk. Attaching an incomplete signing
+    // config here (e.g. one missing storeFile) causes packageRelease to
+    // fail outright rather than falling back to unsigned, which is what
+    // previously broke this build.
 
     buildTypes {
         debug {
@@ -81,7 +66,6 @@ android {
             isMinifyEnabled     = true
             isShrinkResources   = true
             isDebuggable        = false
-            signingConfig       = signingConfigs.getByName("release")
             buildConfigField("Boolean", "ENABLE_VERBOSE_LOGGING", "false")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -90,12 +74,13 @@ android {
         }
     }
 
+    // ABI splits for minimal APK size per architecture
     splits {
         abi {
             isEnable             = true
             reset()
             include("arm64-v8a", "armeabi-v7a", "x86_64")
-            isUniversalApk       = true
+            isUniversalApk       = true // also produce a universal APK
         }
     }
 
@@ -129,18 +114,22 @@ android {
         }
     }
 
+    // Baseline profiles for cold start performance
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
 }
 
 dependencies {
+    // ── Core Library Desugaring ───────────────────────────────────────────────
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 
+    // ── AndroidX Core ─────────────────────────────────────────────────────────
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.splashscreen)
 
+    // ── Compose BOM ───────────────────────────────────────────────────────────
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.graphics)
@@ -151,38 +140,50 @@ dependencies {
     implementation(libs.compose.animation)
     debugImplementation(libs.compose.ui.tooling)
 
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.lifecycle.service)
 
+    // ── Navigation ────────────────────────────────────────────────────────────
     implementation(libs.navigation.compose)
 
+    // ── Hilt DI ───────────────────────────────────────────────────────────────
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
+    // ── Room Database ─────────────────────────────────────────────────────────
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
 
+    // ── DataStore Preferences ────────────────────────────────────────────────
     implementation(libs.datastore.preferences)
 
+    // ── Coroutines ────────────────────────────────────────────────────────────
     implementation(libs.coroutines.android)
     implementation(libs.coroutines.core)
 
+    // ── Security / Crypto ─────────────────────────────────────────────────────
     implementation(libs.security.crypto)
     implementation(libs.biometric)
 
+    // ── Media3 Playback ───────────────────────────────────────────────────────
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
     implementation(libs.media3.session)
 
+    // ── Accompanist Permissions ───────────────────────────────────────────────
     implementation(libs.accompanist.permissions)
 
+    // ── WorkManager ───────────────────────────────────────────────────────────
     implementation(libs.work.runtime.ktx)
 
+    // ── Logging ───────────────────────────────────────────────────────────────
     implementation(libs.timber)
 
+    // ── Testing ───────────────────────────────────────────────────────────────
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.ext)
     androidTestImplementation(libs.espresso.core)
