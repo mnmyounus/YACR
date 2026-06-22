@@ -60,12 +60,14 @@ android {
             versionNameSuffix   = "-DEBUG"
             isDebuggable        = true
             isMinifyEnabled     = false
+            signingConfig       = signingConfigs.getByName("release")
             buildConfigField("Boolean", "ENABLE_VERBOSE_LOGGING", "true")
         }
         release {
             isMinifyEnabled     = true
             isShrinkResources   = true
             isDebuggable        = false
+            signingConfig       = signingConfigs.getByName("release")
             buildConfigField("Boolean", "ENABLE_VERBOSE_LOGGING", "false")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
