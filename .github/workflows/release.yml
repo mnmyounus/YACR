@@ -33,6 +33,9 @@ jobs:
       - name: "Make gradlew executable"
         run: chmod +x ./gradlew
 
+      - name: "Build Debug APK"
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
       - name: "Build Release APK"
         run: ./gradlew assembleRelease --no-daemon --stacktrace
 
@@ -49,7 +52,7 @@ jobs:
           fi
           echo "TAG=$TAG" >> $GITHUB_ENV
 
-      - name: "Rename and collect APKs"
+      - name: "Rename and collect Release APKs"
         run: |
           mkdir -p output
           for apk in app/build/outputs/apk/release/*.apk; do
@@ -58,11 +61,28 @@ jobs:
           done
           ls -lh output/
 
-      - name: "Upload APK artifacts"
+      - name: "Rename and collect Debug APKs"
+        run: |
+          mkdir -p debug-output
+          for apk in app/build/outputs/apk/debug/*.apk; do
+            BASENAME=$(basename "$apk" .apk)
+            cp "$apk" "debug-output/YACR-debug-${BASENAME}.apk"
+          done
+          ls -lh debug-output/
+
+      - name: "Upload Release APK artifacts"
         uses: actions/upload-artifact@v4
         with:
-          name: YACR-${{ env.TAG }}
+          name: YACR-release-${{ env.TAG }}
           path: output/*.apk
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: "Upload Debug APK artifacts"
+        uses: actions/upload-artifact@v4
+        with:
+          name: YACR-debug-${{ env.TAG }}
+          path: debug-output/*.apk
           retention-days: 30
           if-no-files-found: error
 
