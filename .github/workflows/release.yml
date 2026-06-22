@@ -1,5 +1,8 @@
 name: YACR — Build & Release APK
 
+permissions:
+  contents: write
+
 on:
   push:
     tags:
