@@ -47,12 +47,17 @@ android {
         buildConfigField("String", "KEYSTORE_ALIAS", "\"yacr_master_key\"")
     }
 
-    // NOTE: No signingConfigs block — release APKs are built UNSIGNED on
-    // purpose (per project requirement: no signing, APK only). AGP will
-    // output app-release-unsigned.apk. Attaching an incomplete signing
-    // config here (e.g. one missing storeFile) causes packageRelease to
-    // fail outright rather than falling back to unsigned, which is what
-    // previously broke this build.
+    // NOTE: signingConfigs MUST be declared before buildTypes in this file —
+    // Kotlin DSL evaluates top-to-bottom, and buildTypes.getByName("release")
+    // below requires this block to have already run.
+    signingConfigs {
+        create("release") {
+            storeFile     = file("yacr-throwaway.keystore")
+            storePassword = "yacr123456"
+            keyAlias      = "yacr_throwaway"
+            keyPassword   = "yacr123456"
+        }
+    }
 
     buildTypes {
         debug {
