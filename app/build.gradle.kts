@@ -3,12 +3,6 @@
  * ║  YACR – Your All Call Recorder                                           ║
  * ║  Developer : MNM YOUNUS                                                  ║
  * ║  File      : app/build.gradle.kts                                        ║
- * ║                                                                          ║
- * ║  Build Configuration:                                                    ║
- * ║   • Kotlin 2.0 + Compose Compiler Plugin                                 ║
- * ║   • Hilt DI + KSP annotation processing                                  ║
- * ║   • R8 full-mode ProGuard for release shrinking                          ║
- * ║   • ABI splits: arm64-v8a, armeabi-v7a, x86_64 (minimal APK sizes)      ║
  * ╚══════════════════════════════════════════════════════════════════════════╝
  */
 plugins {
@@ -26,8 +20,8 @@ android {
 
     defaultConfig {
         applicationId        = "com.mnmyounus.yacr"
-        minSdk               = 29          // Android 10 (Q)
-        targetSdk            = 34          // Android 14
+        minSdk               = 29
+        targetSdk            = 34
         versionCode          = 1
         versionName          = "1.0.0"
 
@@ -35,7 +29,6 @@ android {
 
         vectorDrawables { useSupportLibrary = true }
 
-        // Room schema export path
         ksp {
             arg("room.schemaLocation",   "$projectDir/schemas")
             arg("room.incremental",      "true")
@@ -47,9 +40,6 @@ android {
         buildConfigField("String", "KEYSTORE_ALIAS", "\"yacr_master_key\"")
     }
 
-    // NOTE: signingConfigs MUST be declared before buildTypes in this file —
-    // Kotlin DSL evaluates top-to-bottom, and buildTypes.getByName("release")
-    // below requires this block to have already run.
     signingConfigs {
         create("release") {
             storeFile     = file("yacr-throwaway.keystore")
@@ -81,15 +71,10 @@ android {
         }
     }
 
-    // ABI splits for minimal APK size per architecture
-    splits {
-        abi {
-            isEnable             = true
-            reset()
-            include("arm64-v8a", "armeabi-v7a", "x86_64")
-            isUniversalApk       = true // also produce a universal APK
-        }
-    }
+    // NOTE: No ABI splits — produces a single universal APK per build,
+    // matching the simpler YPI release setup. Slightly larger file size,
+    // but installs on any device architecture with zero ambiguity about
+    // which variant to download.
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -121,22 +106,18 @@ android {
         }
     }
 
-    // Baseline profiles for cold start performance
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
 }
 
 dependencies {
-    // ── Core Library Desugaring ───────────────────────────────────────────────
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 
-    // ── AndroidX Core ─────────────────────────────────────────────────────────
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.splashscreen)
 
-    // ── Compose BOM ───────────────────────────────────────────────────────────
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.graphics)
@@ -147,50 +128,38 @@ dependencies {
     implementation(libs.compose.animation)
     debugImplementation(libs.compose.ui.tooling)
 
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.lifecycle.service)
 
-    // ── Navigation ────────────────────────────────────────────────────────────
     implementation(libs.navigation.compose)
 
-    // ── Hilt DI ───────────────────────────────────────────────────────────────
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
-    // ── Room Database ─────────────────────────────────────────────────────────
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
 
-    // ── DataStore Preferences ────────────────────────────────────────────────
     implementation(libs.datastore.preferences)
 
-    // ── Coroutines ────────────────────────────────────────────────────────────
     implementation(libs.coroutines.android)
     implementation(libs.coroutines.core)
 
-    // ── Security / Crypto ─────────────────────────────────────────────────────
     implementation(libs.security.crypto)
     implementation(libs.biometric)
 
-    // ── Media3 Playback ───────────────────────────────────────────────────────
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
     implementation(libs.media3.session)
 
-    // ── Accompanist Permissions ───────────────────────────────────────────────
     implementation(libs.accompanist.permissions)
 
-    // ── WorkManager ───────────────────────────────────────────────────────────
     implementation(libs.work.runtime.ktx)
 
-    // ── Logging ───────────────────────────────────────────────────────────────
     implementation(libs.timber)
 
-    // ── Testing ───────────────────────────────────────────────────────────────
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.ext)
     androidTestImplementation(libs.espresso.core)
